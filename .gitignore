@@ -1,0 +1,27 @@
+data/dbz/geotiff/*.tif*
+geoserver_data/logs/
+.claude
+# ImageMosaic runtime files (index lives in PostGIS)
+data/dbz/geotiff/datastore.properties
+data/dbz/geotiff/*.properties
+!data/dbz/geotiff/indexer.properties
+!data/dbz/geotiff/timeregex.properties
+data/dbz/geotiff/sample_image*
+.env
+
+# GeoServer secrets: keystore, master password, user password hashes.
+# kartoza/geoserver regenerates these on a new container from .env.
+geoserver_data/security/
+
+# GeoServer / GeoWebCache runtime state
+geoserver_data/gwc/diskquota_page_store_hsql/
+geoserver_data/gwc/*.bak
+geoserver_data/temp/
+geoserver_data/tmp/
+
+# Python
+__pycache__/
+*.pyc
+
+# Local development overrides
+docker-compose.override.yml

@@ -1,0 +1,19 @@
+<layer>
+  <name>radar_finland_eureffin</name>
+  <id>LayerInfoImpl-4eab392c:1a10250729b:-7fef</id>
+  <type>RASTER</type>
+  <defaultStyle>
+    <id>StyleInfoImpl-4eab392c:1a10250729b:-7ffd</id>
+  </defaultStyle>
+  <resource class="coverage">
+    <id>CoverageInfoImpl-4eab392c:1a10250729b:-7ff0</id>
+  </resource>
+  <queryable>true</queryable>
+  <opaque>false</opaque>
+  <attribution>
+    <logoWidth>0</logoWidth>
+    <logoHeight>0</logoHeight>
+  </attribution>
+  <dateCreated>2026-10-03 15:11:02.209 UTC</dateCreated>
+  <dateModified>2026-10-04 19:10:27.392 UTC</dateModified>
+</layer>
