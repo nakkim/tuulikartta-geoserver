@@ -57,4 +57,5 @@ Changing the admin password in `.env` takes effect when the container is recreat
 - Keep `GEOSERVER_DISABLE_WEB_INTERFACE=true`.
 - Only WMS and WMTS are enabled. WFS, WCS, WPS and CSW are disabled.
 - Request limits: `geoserver_data/controlflow.properties` (per-IP throttling via `X-Forwarded-For` set by the proxy) and WMS limits in `geoserver_init/setup.sh`.
+- Behind another reverse proxy, the proxy takes the client IP from `X-Forwarded-For` only when the request comes from a private address (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`). The proxy in front must set or append the real client IP.
 - `geoserver_data/security/` and `data/dbz/geotiff/datastore.properties` contain secrets and are not committed.
