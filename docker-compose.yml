@@ -6,7 +6,7 @@ services:
     environment:
       - POLL_INTERVAL_SECONDS=10
       - OUTPUT_DIR=/data/dbz/geotiff
-      - RETENTION_HOURS=1
+      - RETENTION_HOURS=24
       - GEOSERVER_HARVEST_ENABLED=true
       - GEOSERVER_URL=http://geoserver:8080/geoserver
       - GEOSERVER_WORKSPACE=radar
