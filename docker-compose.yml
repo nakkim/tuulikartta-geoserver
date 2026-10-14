@@ -1,5 +1,6 @@
 services:
   radar-poller:
+    image: ghcr.io/nakkim/tuulikartta-geoserver/radar-poller:latest
     build: ./radar_poller
     restart: unless-stopped
     environment:
@@ -74,6 +75,7 @@ services:
         condition: service_healthy
 
   geoserver-init:
+    image: ghcr.io/nakkim/tuulikartta-geoserver/geoserver-init:latest
     build: ./geoserver_init
     environment:
       - GEOSERVER_URL=http://geoserver:8080/geoserver

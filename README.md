@@ -21,6 +21,15 @@ cp .env.example .env   # set passwords and options
 docker compose up -d --build
 ```
 
+To use the prebuilt `radar-poller` and `geoserver-init` images from GHCR instead of building them locally:
+
+```sh
+docker compose pull radar-poller geoserver-init
+docker compose up -d
+```
+
+GitHub Actions builds and pushes these images when `VERSION` changes on `main`. Increase `VERSION` to publish a new release.
+
 All variables in `.env` are required; see `.env.example` for descriptions.
 
 Endpoints (with `PROXY_PORT=8088`):
