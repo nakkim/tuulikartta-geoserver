@@ -3,9 +3,9 @@
   <cacheCleanUpFrequency>5</cacheCleanUpFrequency>
   <cacheCleanUpUnits>SECONDS</cacheCleanUpUnits>
   <maxConcurrentCleanUps>2</maxConcurrentCleanUps>
-  <globalExpirationPolicyName>LFU</globalExpirationPolicyName>
+  <globalExpirationPolicyName>LRU</globalExpirationPolicyName>
   <globalQuota>
-    <value>20</value>
+    <value>1</value>
     <units>GiB</units>
   </globalQuota>
  <quotaStore>HSQL</quotaStore>

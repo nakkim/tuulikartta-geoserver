@@ -3,6 +3,7 @@
 import logging
 import os
 import re
+import subprocess
 import sys
 import time
 from datetime import datetime, timedelta, timezone
@@ -20,6 +21,7 @@ OUTPUT_DIR = os.environ.get("OUTPUT_DIR", "/data/dbz/geotiff")
 POLL_INTERVAL = float(os.environ.get("POLL_INTERVAL_SECONDS", "10"))
 REQUEST_TIMEOUT = float(os.environ.get("REQUEST_TIMEOUT_SECONDS", "30"))
 RETENTION_HOURS = float(os.environ.get("RETENTION_HOURS", "6"))
+CONVERT_TIMEOUT = float(os.environ.get("CONVERT_TIMEOUT_SECONDS", "120"))
 
 GEOSERVER_HARVEST_ENABLED = os.environ.get("GEOSERVER_HARVEST_ENABLED", "true").lower() == "true"
 GEOSERVER_URL = os.environ.get("GEOSERVER_URL", "http://geoserver:8080/geoserver")
@@ -37,6 +39,9 @@ POSTGIS_PORT = os.environ.get("POSTGIS_PORT", "5432")
 POSTGIS_DB = os.environ.get("POSTGIS_DB", "radar")
 POSTGIS_USER = os.environ.get("POSTGIS_USER", "radar")
 POSTGIS_PASSWORD = os.environ.get("POSTGIS_PASSWORD", "radar")
+
+GWC_LAYER = f"{GEOSERVER_WORKSPACE}:{GEOSERVER_COVERAGE}"
+GWC_REST_URL = f"{GEOSERVER_URL}/gwc/rest"
 
 FILENAME_RE = re.compile(r"^(\d{8}T\d{6}Z)_finland_dbz_eureffin\.tif$")
 
@@ -121,14 +126,38 @@ def safe_filename(time_str):
 
 
 def download(url, dest_path):
-    tmp_path = dest_path + ".part"
-    with requests.get(url, timeout=REQUEST_TIMEOUT, stream=True) as resp:
-        resp.raise_for_status()
-        with open(tmp_path, "wb") as f:
-            for chunk in resp.iter_content(chunk_size=1 << 16):
-                if chunk:
-                    f.write(chunk)
-    os.replace(tmp_path, dest_path)
+    """Download the GeoTIFF and store it as a compressed Cloud Optimized GeoTIFF."""
+    raw_path = dest_path + ".raw.part"
+    cog_path = dest_path + ".part"
+    try:
+        with requests.get(url, timeout=REQUEST_TIMEOUT, stream=True) as resp:
+            resp.raise_for_status()
+            with open(raw_path, "wb") as f:
+                for chunk in resp.iter_content(chunk_size=1 << 16):
+                    if chunk:
+                        f.write(chunk)
+        # Source is uncompressed and strip-organized (~36 MB). COG with DEFLATE is
+        # ~3 MB, tiled and has overviews. NEAREST keeps overview values real dBZ.
+        subprocess.run(
+            [
+                "gdal_translate", "-q", "-of", "COG",
+                "-co", "COMPRESS=DEFLATE",
+                "-co", "PREDICTOR=2",
+                "-co", "RESAMPLING=NEAREST",
+                raw_path, cog_path,
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=CONVERT_TIMEOUT,
+        )
+        os.replace(cog_path, dest_path)
+    finally:
+        for path in (raw_path, cog_path):
+            try:
+                os.remove(path)
+            except FileNotFoundError:
+                pass
 
 
 def harvest_granule(dest_path):
@@ -171,6 +200,77 @@ def remove_granule(filename):
             log.warning("GeoServer granule removal failed (%s): %s", resp.status_code, resp.text)
     except requests.RequestException as exc:
         log.warning("GeoServer granule removal request failed: %s", exc)
+    match = FILENAME_RE.match(filename)
+    if match:
+        truncate_time_tiles(datetime.strptime(match.group(1), "%Y%m%dT%H%M%SZ"))
+
+
+def truncate_latest_tiles():
+    """Remove cached tiles requested without TIME; they show the previous latest image.
+
+    The seed endpoint truncates only the default parameter set, so tiles cached
+    for explicit TIME values stay.
+    """
+    if not GEOSERVER_HARVEST_ENABLED:
+        return
+    try:
+        resp = requests.get(
+            f"{GWC_REST_URL}/layers/{GWC_LAYER}.json", auth=GEOSERVER_AUTH, timeout=REQUEST_TIMEOUT
+        )
+        resp.raise_for_status()
+        layer = resp.json()["GeoServerLayer"]
+        for gridset in (g["gridSetName"] for g in layer.get("gridSubsets", [])):
+            for fmt in layer.get("mimeFormats", []):
+                # zoomStop is clamped to the gridset's last level
+                body = {"seedRequest": {
+                    "name": GWC_LAYER, "gridSetId": gridset, "format": fmt,
+                    "zoomStart": 0, "zoomStop": 30, "type": "truncate", "threadCount": 1,
+                }}
+                resp = requests.post(
+                    f"{GWC_REST_URL}/seed/{GWC_LAYER}.json",
+                    json=body,
+                    auth=GEOSERVER_AUTH,
+                    timeout=REQUEST_TIMEOUT,
+                )
+                if not resp.ok:
+                    log.warning("Tile cache truncate failed for %s %s (%s): %s",
+                                gridset, fmt, resp.status_code, resp.text)
+    except (requests.RequestException, ValueError, KeyError) as exc:
+        log.warning("Tile cache truncate request failed: %s", exc)
+
+
+def truncate_time_tiles(granule_time):
+    """Remove cached tiles for an expired image's TIME value."""
+    if not GEOSERVER_HARVEST_ENABLED:
+        return
+    try:
+        resp = requests.get(
+            f"{GEOSERVER_URL}/rest/layers/{GWC_LAYER}.json", auth=GEOSERVER_AUTH, timeout=REQUEST_TIMEOUT
+        )
+        resp.raise_for_status()
+        # Cached parameter sets include the resolved default style
+        style = resp.json()["layer"]["defaultStyle"]["name"]
+        # Both spellings the TIME parameter filter accepts
+        for value in (granule_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                      granule_time.strftime("%Y-%m-%dT%H:%M:%S.000Z")):
+            body = (
+                f"<truncateParameters><layerName>{GWC_LAYER}</layerName><parameters>"
+                f"<entry><string>STYLES</string><string>{style}</string></entry>"
+                f"<entry><string>TIME</string><string>{value}</string></entry>"
+                f"</parameters></truncateParameters>"
+            )
+            resp = requests.post(
+                f"{GWC_REST_URL}/masstruncate",
+                data=body,
+                headers={"Content-Type": "text/xml"},
+                auth=GEOSERVER_AUTH,
+                timeout=REQUEST_TIMEOUT,
+            )
+            if not resp.ok:
+                log.warning("Tile cache truncate failed for TIME=%s (%s): %s",
+                            value, resp.status_code, resp.text)
+    except (requests.RequestException, ValueError, KeyError) as exc:
+        log.warning("Tile cache truncate request failed: %s", exc)
 
 
 def reconcile_index():
@@ -204,6 +304,15 @@ def reconcile_index():
 def cleanup_old_files():
     cutoff = datetime.now(timezone.utc) - timedelta(hours=RETENTION_HOURS)
     for name in os.listdir(OUTPUT_DIR):
+        if name.endswith(".part"):
+            # Leftover from an interrupted run; downloads in this process
+            # remove their own temporary files.
+            log.info("Removing stale temporary file %s", name)
+            try:
+                os.remove(os.path.join(OUTPUT_DIR, name))
+            except OSError as exc:
+                log.warning("Failed to remove %s: %s", name, exc)
+            continue
         match = FILENAME_RE.match(name)
         if not match:
             continue
@@ -237,6 +346,7 @@ def main():
                     log.info("New image %s -> %s", time_str, dest_path)
                     download(url, dest_path)
                     harvest_granule(dest_path)
+                    truncate_latest_tiles()
                     last_time = time_str
                 else:
                     log.debug("No new image (latest still %s)", last_time)
@@ -245,6 +355,10 @@ def main():
             reconcile_index()
         except requests.RequestException as exc:
             log.error("Request failed: %s", exc)
+        except subprocess.CalledProcessError as exc:
+            log.error("GeoTIFF conversion failed: %s", exc.stderr.strip())
+        except subprocess.TimeoutExpired:
+            log.error("GeoTIFF conversion timed out after %ss", CONVERT_TIMEOUT)
         except ET.ParseError as exc:
             log.error("Failed to parse WFS response: %s", exc)
         except Exception:

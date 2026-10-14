@@ -65,6 +65,11 @@
       <availableStyles class="sorted-set"/>
       <defaultStyle>raster</defaultStyle>
     </styleParameterFilter>
+    <regexParameterFilter>
+      <key>TIME</key>
+      <defaultValue></defaultValue>
+      <regex>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z</regex>
+    </regexParameterFilter>
   </parameterFilters>
   <gutter>0</gutter>
   <cacheWarningSkips/>

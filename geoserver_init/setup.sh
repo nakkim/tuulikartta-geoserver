@@ -71,4 +71,23 @@ curl -sf -u "${AUTH}" -XPUT -H "Content-type: text/xml" \
     -d "<coverage><metadata><entry key=\"time\"><dimensionInfo><enabled>true</enabled><presentation>LIST</presentation><units>ISO8601</units><defaultValue><strategy>MAXIMUM</strategy></defaultValue></dimensionInfo></entry></metadata></coverage>" \
     "${GEOSERVER_URL}/rest/workspaces/${GEOSERVER_WORKSPACE}/coveragestores/${GEOSERVER_STORE}/coverages/${GEOSERVER_COVERAGE}"
 
+# Cache tiles per TIME value. Without this filter GeoWebCache ignores TIME and
+# serves the same cached tile for every time step. Empty TIME (latest image) is
+# its own cache entry, which radar-poller truncates after each new image.
+GWC_LAYER_URL="${GEOSERVER_URL}/gwc/rest/layers/${GEOSERVER_WORKSPACE}:${GEOSERVER_COVERAGE}.xml"
+TIME_FILTER='<regexParameterFilter><key>TIME</key><defaultValue></defaultValue><regex>\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{3})?Z</regex></regexParameterFilter>'
+GWC_LAYER="$(curl -sf -u "${AUTH}" "${GWC_LAYER_URL}")"
+if printf '%s' "${GWC_LAYER}" | grep -q '<key>TIME</key>'; then
+    echo "Tile cache TIME parameter filter already exists"
+elif ! printf '%s' "${GWC_LAYER}" | grep -q '</parameterFilters>'; then
+    echo "Tile cache layer has no parameterFilters element; cannot add TIME filter" >&2
+    exit 1
+else
+    echo "Adding TIME parameter filter to tile cache layer"
+    printf '%s' "${GWC_LAYER}" \
+        | sed "s#</parameterFilters>#${TIME_FILTER}</parameterFilters>#" \
+        | curl -sf -u "${AUTH}" -XPUT -H "Content-type: text/xml" --data-binary @- "${GWC_LAYER_URL}"
+    echo
+fi
+
 echo "GeoServer setup complete."

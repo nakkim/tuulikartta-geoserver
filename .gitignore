@@ -16,6 +16,7 @@ geoserver_data/security/
 # GeoServer / GeoWebCache runtime state
 geoserver_data/gwc/diskquota_page_store_hsql/
 geoserver_data/gwc/*.bak
+geoserver_data/gwc/radar_*/
 geoserver_data/temp/
 geoserver_data/tmp/
 
