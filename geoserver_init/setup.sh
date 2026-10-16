@@ -9,6 +9,8 @@ GEOSERVER_STORE="${GEOSERVER_STORE:-finland_dbz_eureffin}"
 GEOSERVER_COVERAGE="${GEOSERVER_COVERAGE:-radar_finland_eureffin}"
 MOSAIC_NAME="${MOSAIC_NAME:-finland_dbz_eureffin}"
 MOSAIC_DIR="${MOSAIC_DIR:-/data/dbz/geotiff}"
+# Radar composite time step in milliseconds (FMI publishes every 5 minutes)
+TIME_RESOLUTION_MS="${TIME_RESOLUTION_MS:-300000}"
 
 AUTH="${GEOSERVER_USER}:${GEOSERVER_PASSWORD}"
 
@@ -99,10 +101,11 @@ else
     echo "Coverage ${GEOSERVER_COVERAGE} already exists"
 fi
 
-# Enable time dimension on the published coverage (idempotent)
+# Enable time dimension on the published coverage (idempotent). DISCRETE_INTERVAL
+# advertises start/end/period instead of listing every time value.
 echo "Configuring time dimension on coverage ${GEOSERVER_COVERAGE}"
 curl -sf -u "${AUTH}" -XPUT -H "Content-type: text/xml" \
-    -d "<coverage><metadata><entry key=\"time\"><dimensionInfo><enabled>true</enabled><presentation>LIST</presentation><units>ISO8601</units><defaultValue><strategy>MAXIMUM</strategy></defaultValue></dimensionInfo></entry></metadata></coverage>" \
+    -d "<coverage><metadata><entry key=\"time\"><dimensionInfo><enabled>true</enabled><presentation>DISCRETE_INTERVAL</presentation><resolution>${TIME_RESOLUTION_MS}</resolution><units>ISO8601</units><defaultValue><strategy>MAXIMUM</strategy></defaultValue></dimensionInfo></entry></metadata></coverage>" \
     "${GEOSERVER_URL}/rest/workspaces/${GEOSERVER_WORKSPACE}/coveragestores/${GEOSERVER_STORE}/coverages/${GEOSERVER_COVERAGE}"
 
 # Cache tiles per TIME value. Without this filter GeoWebCache ignores TIME and
