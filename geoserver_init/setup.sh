@@ -24,6 +24,40 @@ curl -sf -u "${AUTH}" -XPUT -H "Content-type: application/json" \
     -d '{"wms":{"srs":{"string":["EPSG:3857","EPSG:3067"]},"maxRequestMemory":65536,"maxRenderingTime":30,"maxRenderingErrors":1000}}' \
     "${GEOSERVER_URL}/rest/services/wms/settings.json"
 
+# Service metadata shown in GetCapabilities. Contact information is global and
+# shared by all services.
+TERM="The use of this service and the returned data is limited. Contract with Tuulikartta.info is required for any kind of use."
+ONLINE_RESOURCE="https://tuulikartta.info/tietoa-sivustosta/en/"
+
+echo "Setting contact information"
+curl -sf -u "${AUTH}" -XPUT -H "Content-type: application/json" \
+    -d "{\"contact\":{
+        \"contactEmail\":\"tuulikartta@proton.me\",
+        \"onlineResource\":\"https://tuulikartta.info/\"}}" \
+    "${GEOSERVER_URL}/rest/settings/contact"
+
+echo "Setting WMS service metadata"
+curl -sf -u "${AUTH}" -XPUT -H "Content-type: application/json" \
+    -d "{\"wms\":{
+        \"title\":\"Tuulikartta.info - Web Map Service\",
+        \"keywords\":{\"string\":[\"Weather\",\"Radar\"]},
+        \"onlineResource\":\"${ONLINE_RESOURCE}\",
+        \"fees\":\"${TERM}\",
+        \"accessConstraints\":\"${TERM}\"}}" \
+    "${GEOSERVER_URL}/rest/services/wms/settings.json"
+
+echo "Setting WMTS service metadata"
+curl -sf -u "${AUTH}" -XPUT -H "Content-type: application/json" \
+    -d "{\"wmts\":{
+        \"title\":\"Tuulikartta.info - Web Map Tile Service\",
+        \"maintainer\":\"Tuulikartta.info\",
+        \"abstrct\":\"Tuulikartta.info's Web Map Tile Service\",
+        \"keywords\":{\"string\":[\"Weather\",\"Radar\"]},
+        \"onlineResource\":\"${ONLINE_RESOURCE}\",
+        \"fees\":\"${TERM}\",
+        \"accessConstraints\":\"${TERM}\"}}" \
+    "${GEOSERVER_URL}/rest/services/wmts/settings.json"
+
 echo "Waiting for first GeoTIFF granule in ${MOSAIC_DIR}..."
 until [ -n "$(find "${MOSAIC_DIR}" -maxdepth 1 -name '*.tif' -print -quit 2>/dev/null)" ]; do
     sleep 5
