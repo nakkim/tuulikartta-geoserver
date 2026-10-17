@@ -23,7 +23,7 @@
     AXIS[&quot;Geodetic longitude&quot;, EAST], 
     AXIS[&quot;Geodetic latitude&quot;, NORTH], 
     AUTHORITY[&quot;EPSG&quot;,&quot;10690&quot;]], 
-  PROJECTION[&quot;Transverse_Mercator&quot;], 
+  PROJECTION[&quot;Transverse_Mercator&quot;, AUTHORITY[&quot;EPSG&quot;,&quot;9807&quot;]], 
   PARAMETER[&quot;central_meridian&quot;, 27.0], 
   PARAMETER[&quot;latitude_of_origin&quot;, 0.0], 
   PARAMETER[&quot;scale_factor&quot;, 0.9996], 
@@ -52,23 +52,31 @@
   <enabled>true</enabled>
   <advertised>true</advertised>
   <metadata>
+    <entry key="DirectDownload.Key">
+      <directDownloadSettings>
+        <directDownloadEnabled>false</directDownloadEnabled>
+        <maxDownloadSize>0</maxDownloadSize>
+      </directDownloadSettings>
+    </entry>
     <entry key="time">
       <dimensionInfo>
         <enabled>true</enabled>
-        <presentation>DISCRETE_INTERVAL</presentation>
-        <resolution>300000</resolution>
+        <presentation>LIST</presentation>
         <units>ISO8601</units>
         <defaultValue>
           <strategy>MAXIMUM</strategy>
         </defaultValue>
       </dimensionInfo>
     </entry>
+    <entry key="cachingEnabled">false</entry>
   </metadata>
   <store class="coverageStore">
     <id>CoverageStoreInfoImpl-4eab392c:1a10250729b:-7ff3</id>
   </store>
   <serviceConfiguration>false</serviceConfiguration>
   <simpleConversionEnabled>false</simpleConversionEnabled>
+  <internationalTitle/>
+  <internationalAbstract/>
   <nativeFormat>ImageMosaic</nativeFormat>
   <grid dimension="2">
     <range>

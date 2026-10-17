@@ -62,8 +62,10 @@
     <styleParameterFilter>
       <key>STYLES</key>
       <defaultValue></defaultValue>
-      <availableStyles class="sorted-set"/>
-      <defaultStyle>raster</defaultStyle>
+      <availableStyles class="sorted-set">
+        <string>radar:dbz</string>
+      </availableStyles>
+      <defaultStyle>radar:dbz</defaultStyle>
     </styleParameterFilter>
     <regexParameterFilter>
       <key>TIME</key>
